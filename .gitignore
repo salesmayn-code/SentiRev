@@ -1,0 +1,43 @@
+# Dependencies and package-manager caches
+node_modules/
+.pnp/
+.pnp.*
+.yarn/cache/
+.yarn/install-state.gz
+
+# Next.js, React, and common build output
+.next/
+out/
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# Browser-test output
+playwright-report/
+test-results/
+blob-report/
+
+# Local environment and secrets (keep .env.example tracked)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Logs and local tool state
+*.log
+.eslintcache
+.cache/
+.vercel/
+__pycache__/
+*.py[cod]
+
+# Operating-system and editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Personal documentation kept only on this machine
+/Docx/
