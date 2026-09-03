@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("SENTIREV_DATABASE_URL")
+}
+
+enum ConsentMode {
+  AI_ALLOWED
+  STATIC_ONLY
+}
+
+enum ConnectionStatus {
+  CONNECTED
+  DISCONNECTED
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id               String              @id @default(cuid())
+  githubUserId     String              @unique
+  login            String
+  createdAt        DateTime            @default(now())
+  installations    Installation[]      @relation("InstallationOwner")
+  consentsRecorded RepositoryConsent[] @relation("ConsentRecorder")
+}
+
+model Installation {
+  id                   String       @id @default(cuid())
+  githubInstallationId String       @unique
+  ownerUserId          String
+  ownerUser            User         @relation("InstallationOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  createdAt            DateTime     @default(now())
+  repositories         Repository[]
+}
+
+model Repository {
+  id                 String             @id @default(cuid())
+  githubRepositoryId String             @unique
+  ownerLogin         String
+  name               String
+  fullName           String             @unique
+  installationId     String
+  installation       Installation       @relation(fields: [installationId], references: [id], onDelete: Restrict)
+  connectionStatus   ConnectionStatus   @default(CONNECTED)
+  consent            RepositoryConsent?
+  pullRequests       PullRequest[]
+  deliveries         WebhookDelivery[]
+  createdAt          DateTime           @default(now())
+}
+
+model RepositoryConsent {
+  id           String      @id @default(cuid())
+  repositoryId String      @unique
+  repository   Repository  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  mode         ConsentMode
+  recordedAt   DateTime    @default(now())
+  recordedById String
+  recordedBy   User        @relation("ConsentRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
+}
+
+model PullRequest {
+  id           String            @id @default(cuid())
+  repositoryId String
+  repository   Repository        @relation(fields: [repositoryId], references: [id], onDelete: Restrict)
+  githubNumber Int
+  headSha      String
+  createdAt    DateTime          @default(now())
+  deliveries   WebhookDelivery[]
+  jobs         FoundationJob[]
+
+  @@unique([repositoryId, githubNumber, headSha])
+}
+
+model WebhookDelivery {
+  id               String         @id @default(cuid())
+  githubDeliveryId String         @unique
+  event            String
+  action           String
+  repositoryId     String
+  repository       Repository     @relation(fields: [repositoryId], references: [id], onDelete: Restrict)
+  pullRequestId    String
+  pullRequest      PullRequest    @relation(fields: [pullRequestId], references: [id], onDelete: Restrict)
+  receivedAt       DateTime       @default(now())
+  job              FoundationJob?
+}
+
+model FoundationJob {
+  id                String          @id @default(cuid())
+  idempotencyKey    String          @unique
+  webhookDeliveryId String          @unique
+  webhookDelivery   WebhookDelivery @relation(fields: [webhookDeliveryId], references: [id], onDelete: Restrict)
+  pullRequestId     String
+  pullRequest       PullRequest     @relation(fields: [pullRequestId], references: [id], onDelete: Restrict)
+  status            JobStatus       @default(QUEUED)
+  attempts          Int             @default(0)
+  queuePublishedAt  DateTime?
+  completedAt       DateTime?
+  failureReason     String?
+  findings          Finding[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model Finding {
+  id              String        @id @default(cuid())
+  foundationJobId String
+  foundationJob   FoundationJob @relation(fields: [foundationJobId], references: [id], onDelete: Restrict)
+  createdAt       DateTime      @default(now())
+}
