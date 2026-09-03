@@ -41,3 +41,13 @@ Thumbs.db
 
 # Personal documentation kept only on this machine
 /Docx/
+
+# Project planning and agent workflow kept local
+*.md
+!README.md
+!**/README.md
+/AGENTS.md
+/.agents/
+/.codex/
+/docs/
+/scripts/validate_template.py
