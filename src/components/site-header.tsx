@@ -31,8 +31,11 @@ export function SiteHeader({
 
         {context === "public" ? (
           <nav className="site-nav" aria-label="Public navigation">
-            <Link className="nav-link" href="/#data-use">
+            <Link className="nav-link" href="/#how-it-works">
               How it works
+            </Link>
+            <Link className="nav-link" href="/evals">
+              Evals
             </Link>
             <Link className="nav-link nav-link-primary" href="/install">
               Install GitHub App
@@ -59,6 +62,9 @@ export function SiteHeader({
                 </select>
               </label>
             ) : null}
+            <Link className="nav-link" href="/evals">
+              Evals
+            </Link>
             <Link className="nav-link" href="/api/auth/logout">
               Log out
             </Link>

@@ -1,158 +1,233 @@
-# codex-web-app-workflow
+# SentiRev
 
-This repository is a reusable workflow template for web applications. It
-provides the project agreements, phase contracts, task contracts, design guard
-rails, and validation guidance needed for future Next.js, React, TypeScript,
-Tailwind, and full-stack projects. It intentionally does not contain a
-product application, product data, or a brand identity.
+### A careful second review for every pull request.
 
-## Publish this repository as a GitHub template
+SentiRev is a GitHub-native code review service for repository owners and small
+engineering teams. It examines new pull-request changes for security and logic
+issues, explains each finding, and points to the exact file and line that needs
+attention—without taking control of the merge.
 
-The local directory may have a different name; the remote repository should be
-named `codex-web-app-workflow`. From this repository root:
-
-```powershell
-git init -b main
-git add .
-git commit -m "chore: initialize codex-web-app-workflow"
-git branch -M main
+```text
+19 │ export function exportAdminReport(user) {
+20 │   if (!user) throw new Error("Authentication required");
+   │
+24 │   return buildAdminReport(user.id);
+   ├────────────────────────────────────────────────────────
+   │ HIGH  Authorization bypass
+   │ An authenticated user can access an administrator report
+   │ without an administrator-role check.
 ```
 
-Create an empty GitHub repository named `codex-web-app-workflow` without a
-generated README, license, or `.gitignore`. Then connect and push this local
-repository, replacing `OWNER` with the personal account or organization:
+> SentiRev is advisory. It helps developers review changes more consistently;
+> it does not claim to make software vulnerability-free or replace a full
+> security assessment.
 
-```powershell
-git remote add origin https://github.com/OWNER/codex-web-app-workflow.git
-git push -u origin main
+## Why SentiRev exists
+
+Solo maintainers and small teams do not always have a second security reviewer
+available for every pull request. Static analyzers are fast but can be noisy,
+while manual review is slower and often compressed by deadlines.
+
+SentiRev is designed to sit between those extremes: deterministic checks for
+known patterns, reasoning about the changed code, and a concise explanation a
+developer can verify for themselves.
+
+It focuses on issues such as:
+
+- authorization bypasses;
+- unsanitized input;
+- committed secrets;
+- unsafe deserialization;
+- security-sensitive logic mistakes.
+
+## How a review works
+
+```text
+GitHub pull request
+        │
+        ▼
+Signed webhook ──► verify event and repository
+        │
+        ▼
+Fetch PR diff ──► changed hunks with bounded context
+        │
+        ├────────► Semgrep static analysis
+        │
+        └────────► Laguna S 2.1
+                         │ provider failure
+                         ▼
+                   Nemotron 3 Ultra
+        │
+        ▼
+Validate, score, merge, and deduplicate findings
+        │
+        ├────────► cited inline GitHub review comments
+        └────────► repository dashboard and review history
 ```
 
-On GitHub, open the repository and select **Settings → General**. In the
-repository settings, enable **Template repository**. Administrator permission
-is required. GitHub documents this control in
-[Creating a template repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-template-repository).
+For the finished v1, the expected flow is:
 
-To start an application from the published template, select **Use this
-template → Create a new repository**, choose the owner, name, visibility and
-branch options, then create the repository. Keep the workflow files and create
-the application-specific documents described below. GitHub's complete consumer
-flow is documented in
-[Creating a repository from a template](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+1. A GitHub repository administrator installs the SentiRev App and selects one
+   or more repositories.
+2. The administrator chooses AI-assisted review or static-only analysis. PR
+   diffs are never sent to an AI provider without that consent.
+3. GitHub sends an `opened` or `synchronize` pull-request event. SentiRev
+   verifies its signature before storing or queueing anything.
+4. SentiRev retrieves the diff and analyzes changed hunks rather than scanning
+   the repository's entire history.
+5. Static and consented AI passes run in parallel. Their results are validated,
+   severity-scored, merged, and deduplicated.
+6. Findings appear as cited inline comments and in the repository dashboard.
+   A clean review still produces an explicit “no findings” result.
+7. If AI providers are unavailable, static findings still complete and the
+   review reports a visible delay instead of failing silently.
 
-## Sol → Terra → Luna
+## Built around evidence, not alarm
 
-The workflow has three explicit roles:
+Every finding is intended to answer four questions immediately:
 
-- **Sol (architect)** owns requirements, architecture, phase order, approvals,
-  and final acceptance. Sol must approve the product brief, design direction,
-  and numbered phase contract before work starts.
-- **Terra (phase owner)** owns one numbered phase. Terra reads the complete
-  phase contract, breaks it into bounded tasks, delegates those tasks, reviews
-  diffs and evidence, and accepts, rejects, or escalates the results.
-- **Luna (worker or auditor)** performs only the assigned bounded task. An
-  implementation worker changes only its allocated files; a quality auditor is
-  read-only. Every delegated task has at most two implementation attempts. A
-  second failed attempt is escalated to Sol.
+| Question | What SentiRev shows |
+| --- | --- |
+| What happened? | A direct, one-line summary |
+| How serious is it? | `Critical`, `High`, `Medium`, or `Low` in text and color |
+| Where is it? | An exact `file:line` citation and bounded code excerpt |
+| Why was it flagged? | Expandable reasoning and the engine that produced it |
 
-Delegation must name the objective, allowed files, prohibited changes,
-acceptance criteria, verification commands, attempt number, and required return
-format. Parallel write work is allowed only when file ownership is explicit and
-non-overlapping. Shared configuration, routes, package manifests, migrations,
-and central design tokens remain coordinated by the phase owner.
+Findings never block a merge. Repository administrators can dismiss a false
+positive with a note, undo the dismissal, inspect severity trends, and retain
+or permanently delete review history.
 
-The [Codex subagents documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents)
-describes the underlying subagent configuration model.
+## Data and trust boundary
 
-## Files used by an application
+SentiRev is deliberately narrow about the code it handles:
 
-The following application-specific files are copied from the templates in this
-repository and then completed for the new project:
+- It processes pull-request diffs, not complete source trees.
+- AI processing is disclosed and requires repository-admin consent.
+- Static-only mode remains available when AI processing is declined.
+- Raw diff text is deleted after analysis.
+- Only structured findings and a small cited excerpt are retained until an
+  administrator deletes that history.
+- Disconnecting a repository stops new reviews but preserves its existing
+  history until explicit deletion.
+- GitHub webhook signatures are checked against the original request body.
+- GitHub is the only login system; repository access is rechecked against
+  GitHub administrator permission.
+- Provider credentials belong to the SentiRev service owner and are never
+  entered by repository users.
 
-| Source template | Application file | Purpose |
-| --- | --- | --- |
-| `PRODUCT.template.md` | `PRODUCT.md` | Product scope, users, outcomes, and behavior. |
-| `DESIGN.template.md` | `DESIGN.md` | Visual contract, tokens, component rules, and responsive guidance. |
-| `ROADMAP.template.md` | `docs/ROADMAP.md` | Numbered phase sequence and dependencies. |
-| `PHASE.template.md` | `docs/phases/PHASE-001.md` (and later phases) | Contract for one approved phase. |
-| `TASK.template.md` | `docs/tasks/<NNN>-<short-name>.md` | Bounded ownership, acceptance, and evidence contract. |
-| `DECISION.template.md` | `docs/decisions/<NNN>-<short-name>.md` | Durable architectural or product decisions. |
+## Current project status
 
-Keep these reusable workflow files in the application repository:
-`AGENTS.md`, `.codex/config.toml`, `.codex/agents/`,
-`.agents/skills/brand-ui-guard/SKILL.md`, and `docs/VALIDATION.md`. Do not
-copy secrets or personal settings into the project. `PRODUCT.md` and
-`DESIGN.md` are required before a phase that depends on them can be approved.
+SentiRev is under active development. The foundation and representative public
+experience are complete; the analysis pipeline is the next major milestone.
 
-## Starting a project and approving phases
+| Area | Status |
+| --- | --- |
+| GitHub OAuth and App installation | Complete |
+| Repository-admin authorization and consent | Complete |
+| Signed, idempotent webhook ingestion | Complete |
+| PostgreSQL persistence and Redis-backed queued jobs | Complete |
+| Public landing proof and pending evaluations page | Complete |
+| Semgrep and Laguna/Nemotron review engine | Planned next |
+| Inline PR findings and full operational dashboard | Planned |
+| Reproducible provider precision/recall publication | Planned |
+| Production hardening and deployment | Planned |
 
-Start with the following sequence:
+The finding shown on the current landing page is a manually prepared,
+traceable example from a controlled test repository. It is clearly labelled as
+representative proof and is not presented as output from an unfinished review
+engine.
 
-1. Copy `PRODUCT.template.md` to `PRODUCT.md` and record the product scope.
-2. Copy `DESIGN.template.md` to `DESIGN.md` and define the visual direction,
-   tokens, hierarchy, density, signature motif, and responsive behavior.
-3. Review both documents with Sol. Resolve contradictions explicitly; do not
-   invent missing product or brand decisions in implementation files.
-4. Copy `ROADMAP.template.md` to `docs/ROADMAP.md`, then create the first numbered
-   phase from `PHASE.template.md`.
-5. Sol approves the phase contract. Terra creates task contracts and delegates
-   them to Luna with non-overlapping file ownership.
-6. Luna returns the structured evidence requested by the task contract. Terra
-   inspects the actual diff and independently checks the required lint, type,
-   test, build, accessibility, and visual evidence before accepting the phase.
+## Technology
 
-For frontend work, the worker must read `DESIGN.md` before editing. Changed
-flows are inspected at desktop and mobile sizes, including loading, empty,
-error, hover, focus, active, disabled, and success states where applicable.
+- **Application:** Next.js 15, React 19, strict TypeScript
+- **Persistence:** PostgreSQL and Prisma
+- **Jobs:** Redis and BullMQ
+- **GitHub boundary:** GitHub App, OAuth, REST API, signed webhooks
+- **Analysis target:** JavaScript/TypeScript first, Python second
+- **Planned engines:** Semgrep, Laguna S 2.1, Nemotron 3 Ultra fallback
+- **Testing:** Vitest and Playwright
+- **Interface:** the custom Annotated Gutter design system with self-hosted
+  Space Grotesk and IBM Plex fonts
 
-## Google Stitch skills
+## Run locally
 
-Google Stitch is optional. Installing its plugins changes the user's Codex
-plugin setup, so this repository never runs these commands automatically.
-After reviewing the current
-[Google Stitch skills repository](https://github.com/google-labs-code/stitch-skills),
-the user may register its marketplace manually:
+### Prerequisites
 
-```powershell
-codex plugin marketplace add google-labs-code/stitch-skills --ref main `
-  --sparse .agents/plugins `
-  --sparse plugins/stitch-design `
-  --sparse plugins/stitch-build `
-  --sparse plugins/stitch-utilities
-```
+- Node.js 22.19 or newer
+- npm 10.9.3 or newer
+- PostgreSQL
+- Redis
+- A development GitHub App and a test repository you administer
 
-Restart Codex, open `/plugins`, select the **Stitch Skills** marketplace, and
-install `stitch-design`, `stitch-build`, and `stitch-utilities`. Start a new
-session with `/new`, then confirm the installed skills with `/skills`.
-
-Operations that create, read, or manage Stitch canvases also require the
-[Stitch MCP setup](https://stitch.withgoogle.com/docs/mcp/setup), Google
-authentication, and the appropriate credentials. Those are manual,
-environment-level prerequisites. This template does not store credentials,
-alter global Codex settings, install plugins, or authenticate the MCP server.
-
-## Project-local versus global settings
-
-The `.codex/config.toml` and `.codex/agents/*.toml` files are project-local
-settings. They enable subagents for this repository, set a bounded concurrency
-limit, and describe the Terra and Luna roles. Commit them with the project so
-all collaborators receive the same workflow contract.
-
-Global Codex configuration belongs to the user's Codex installation and is
-outside this repository. Do not edit it from a project task. Keep secrets,
-tokens, MCP credentials, and machine-specific paths out of tracked files.
-
-## Validation
-
-This template has no product runtime to build. Its dependency-free structural
-check requires Python 3.11 or newer:
+### 1. Install dependencies
 
 ```powershell
-python scripts/validate_template.py
+npm ci
 ```
 
-Run the additional reusable checks in
-[docs/VALIDATION.md](docs/VALIDATION.md), then run the derived application's own
-lint, type-check, tests, production build, and browser checks when those
-commands exist. A passing command is evidence for that command only; Terra
-still reviews scope, accessibility, responsive behavior, console errors, focus
-visibility, overflow, and screenshot evidence.
+### 2. Configure the environment
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Fill every value in `.env`. Keep the GitHub private key outside this
+repository and point `SENTIREV_GITHUB_PRIVATE_KEY_PATH` to that file. The OAuth
+callback, installation setup URL, webhook URL, and `SENTIREV_APP_URL` must refer
+to the same development application. Never commit `.env`, private keys, OAuth
+secrets, webhook secrets, session secrets, or provider credentials.
+
+The development GitHub App currently needs read access to repository metadata
+and pull requests and must subscribe to pull-request events.
+
+### 3. Prepare the database
+
+```powershell
+npx prisma migrate deploy
+```
+
+### 4. Start the application and worker
+
+Run these in separate PowerShell windows:
+
+```powershell
+npm run dev
+```
+
+```powershell
+npm run worker
+```
+
+Open `http://127.0.0.1:3000`, install the development GitHub App on the test
+repository, choose the processing mode, and open the dashboard.
+
+## Quality checks
+
+```powershell
+npm run lint
+npm run typecheck
+npm test
+npm run test:integration
+npm run test:security
+npm run test:e2e
+npm run test:visual
+npm run design:lint
+npm run secrets:check
+npm run build
+```
+
+The integration suite expects reachable development PostgreSQL and Redis
+services. Browser tests start or reuse the local Next.js application through
+the Playwright configuration.
+
+## First-version boundaries
+
+SentiRev v1 is GitHub-only, English-only, and advisory. It does not include
+billing, team roles, GitLab or Bitbucket support, merge blocking, automatic
+fixes, rescanning old code, user-defined rules, additional AI models, or a
+mobile dashboard.
+
+---
+
+SentiRev should feel like a careful colleague in the margin of a diff: direct,
+specific, explainable, and never alarmist.
