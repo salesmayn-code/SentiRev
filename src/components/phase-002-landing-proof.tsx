@@ -177,7 +177,7 @@ function Phase002FindingProof() {
 
       <div className="phase-002-engine-row">
         <p className="eyebrow">Engine</p>
-        <p className="mono">Laguna S 2.1 — representative output</p>
+        <p className="mono">Cohere North Mini Code Free — representative output</p>
       </div>
 
       <aside className="phase-002-proof-disclosure" aria-label="Representative proof disclosure">

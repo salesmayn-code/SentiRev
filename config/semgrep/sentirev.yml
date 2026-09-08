@@ -1,0 +1,36 @@
+rules:
+  - id: sentirev.javascript.eval-input
+    languages: [javascript, typescript]
+    message: Untrusted data is passed to eval.
+    severity: WARNING
+    pattern: eval(...)
+    metadata:
+      sentirev:
+        category: code-execution
+        severity: Critical
+        reasoning: eval executes input as code and can turn an attacker-controlled value into arbitrary code execution.
+
+  - id: sentirev.javascript.child-process-exec-input
+    languages: [javascript, typescript]
+    message: Untrusted data is passed to a shell command.
+    severity: WARNING
+    patterns:
+      - pattern-either:
+          - pattern: exec(...)
+          - pattern: execSync(...)
+    metadata:
+      sentirev:
+        category: command-injection
+        severity: High
+        reasoning: Shell command execution should not receive untrusted input without strict argument and allow-list validation.
+
+  - id: sentirev.python.pickle-loads-input
+    languages: [python]
+    message: Untrusted data is deserialized with pickle.
+    severity: WARNING
+    pattern: pickle.loads(...)
+    metadata:
+      sentirev:
+        category: unsafe-deserialization
+        severity: Critical
+        reasoning: pickle can execute attacker-controlled code while deserializing data and is unsafe for untrusted input.

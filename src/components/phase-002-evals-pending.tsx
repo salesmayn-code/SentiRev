@@ -16,7 +16,7 @@ export function Phase002EvalsPending() {
       <div className="status status-delayed" role="status" aria-live="polite">
         <p className="status-title">Results pending</p>
         <p>
-          Measured Laguna S 2.1 and Nemotron 3 Ultra precision and recall
+          Measured Cohere North Mini Code Free precision and recall
           results will arrive in Phase 005.
         </p>
       </div>
@@ -24,7 +24,7 @@ export function Phase002EvalsPending() {
       <div className="phase-002-evals-copy">
         <p>
           When published, the comparison will use the same versioned evaluation
-          corpus and documented scoring rules for both named providers and the
+          corpus and documented scoring rules for the fixed named model and the
           merged review path.
         </p>
         <p className="supporting-copy">

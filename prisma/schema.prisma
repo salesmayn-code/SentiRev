@@ -21,16 +21,60 @@ enum JobStatus {
   QUEUED
   RUNNING
   COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum FindingSeverity {
+  Critical
+  High
+  Medium
+  Low
+}
+
+enum EngineKind {
+  STATIC
+  AI
+}
+
+enum EngineRunOutcome {
+  SUCCEEDED
+  PARTIAL
+  FAILED
+  TIMED_OUT
+  INVALID
+}
+
+enum ReviewFeedbackKind {
+  FINDING
+  NO_FINDINGS
+  DELAYED
+  FAILED
+}
+
+enum ReviewFeedbackStatus {
+  PENDING
+  POSTED
+  FAILED
+}
+
+enum ReviewRetryStatus {
+  REQUESTED
+  QUEUED
+  COMPLETED
   FAILED
 }
 
 model User {
-  id               String              @id @default(cuid())
-  githubUserId     String              @unique
-  login            String
-  createdAt        DateTime            @default(now())
-  installations    Installation[]      @relation("InstallationOwner")
-  consentsRecorded RepositoryConsent[] @relation("ConsentRecorder")
+  id                    String               @id @default(cuid())
+  githubUserId          String               @unique
+  login                 String
+  createdAt             DateTime             @default(now())
+  installations         Installation[]       @relation("InstallationOwner")
+  consentsRecorded      RepositoryConsent[]  @relation("ConsentRecorder")
+  findingDismissals     FindingDismissal[]   @relation("FindingDismissalRecorder")
+  findingDismissalUndos FindingDismissal[]   @relation("FindingDismissalUndoer")
+  reviewRetryRequests   ReviewRetryRequest[] @relation("ReviewRetryRequester")
 }
 
 model Installation {
@@ -94,25 +138,138 @@ model WebhookDelivery {
 }
 
 model FoundationJob {
-  id                String          @id @default(cuid())
-  idempotencyKey    String          @unique
-  webhookDeliveryId String          @unique
-  webhookDelivery   WebhookDelivery @relation(fields: [webhookDeliveryId], references: [id], onDelete: Restrict)
-  pullRequestId     String
-  pullRequest       PullRequest     @relation(fields: [pullRequestId], references: [id], onDelete: Restrict)
-  status            JobStatus       @default(QUEUED)
-  attempts          Int             @default(0)
-  queuePublishedAt  DateTime?
-  completedAt       DateTime?
-  failureReason     String?
-  findings          Finding[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  id                   String                  @id @default(cuid())
+  idempotencyKey       String                  @unique
+  webhookDeliveryId    String                  @unique
+  webhookDelivery      WebhookDelivery         @relation(fields: [webhookDeliveryId], references: [id], onDelete: Restrict)
+  pullRequestId        String
+  pullRequest          PullRequest             @relation(fields: [pullRequestId], references: [id], onDelete: Restrict)
+  status               JobStatus               @default(QUEUED)
+  attempts             Int                     @default(0)
+  queuePublishedAt     DateTime?
+  completedAt          DateTime?
+  failureReason        String?
+  findings             Finding[]
+  engineRuns           EngineRun[]
+  feedbackDeliveries   ReviewCommentDelivery[]
+  retryRequests        ReviewRetryRequest[]
+  changedLineCount     Int?
+  reviewDurationMs     Int?
+  outsideLatencyCohort Boolean                 @default(false)
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
 }
 
 model Finding {
-  id              String        @id @default(cuid())
+  id                 String                  @id @default(cuid())
+  foundationJobId    String
+  foundationJob      FoundationJob           @relation(fields: [foundationJobId], references: [id], onDelete: Restrict)
+  filePath           String
+  startLine          Int
+  endLine            Int
+  severity           FindingSeverity
+  category           String
+  fingerprint        String
+  summary            String
+  reasoning          String
+  snippet            String
+  provenance         FindingProvenance[]
+  dismissals         FindingDismissal[]
+  feedbackDeliveries ReviewCommentDelivery[]
+  createdAt          DateTime                @default(now())
+
+  @@unique([foundationJobId, fingerprint])
+  @@index([foundationJobId, severity])
+}
+
+model FindingProvenance {
+  id               String     @id @default(cuid())
+  findingId        String
+  finding          Finding    @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  engineKind       EngineKind
+  engineIdentifier String
+  staticRuleId     String?
+  createdAt        DateTime   @default(now())
+
+  @@unique([findingId, engineKind, engineIdentifier, staticRuleId])
+}
+
+model EngineRun {
+  id               String           @id @default(cuid())
+  foundationJobId  String
+  foundationJob    FoundationJob    @relation(fields: [foundationJobId], references: [id], onDelete: Restrict)
+  engineKind       EngineKind
+  engineIdentifier String
+  outcome          EngineRunOutcome
+  durationMs       Int
+  findingCount     Int
+  createdAt        DateTime         @default(now())
+
+  @@unique([foundationJobId, engineIdentifier])
+  @@index([foundationJobId, engineKind])
+}
+
+/**
+ * A durable false-positive classification. Undoing a dismissal timestamps the
+ * same record instead of deleting it, so the classification history remains
+ * auditable. A later dismissal creates a new record.
+ */
+model FindingDismissal {
+  id            String    @id @default(cuid())
+  findingId     String
+  finding       Finding   @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  note          String
+  dismissedById String
+  dismissedBy   User      @relation("FindingDismissalRecorder", fields: [dismissedById], references: [id], onDelete: Restrict)
+  dismissedAt   DateTime  @default(now())
+  undoneAt      DateTime?
+  undoneById    String?
+  undoneBy      User?     @relation("FindingDismissalUndoer", fields: [undoneById], references: [id], onDelete: Restrict)
+
+  @@index([findingId, undoneAt, dismissedAt])
+}
+
+/**
+ * Stores only the state of GitHub feedback delivery. Comment bodies, diffs,
+ * provider responses, credentials, and request headers are intentionally not
+ * persisted.
+ */
+model ReviewCommentDelivery {
+  id              String               @id @default(cuid())
   foundationJobId String
-  foundationJob   FoundationJob @relation(fields: [foundationJobId], references: [id], onDelete: Restrict)
-  createdAt       DateTime      @default(now())
+  foundationJob   FoundationJob        @relation(fields: [foundationJobId], references: [id], onDelete: Restrict)
+  findingId       String?
+  finding         Finding?             @relation(fields: [findingId], references: [id], onDelete: Restrict)
+  kind            ReviewFeedbackKind
+  idempotencyKey  String               @unique
+  status          ReviewFeedbackStatus @default(PENDING)
+  githubCommentId String?
+  postedAt        DateTime?
+  errorCode       String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([foundationJobId, status])
+  @@index([findingId, status])
+}
+
+/**
+ * A retry intent is durable and idempotent. Queue publication is owned by the
+ * Phase 004 orchestration boundary; dashboard actions only create this intent.
+ */
+model ReviewRetryRequest {
+  id              String            @id @default(cuid())
+  foundationJobId String
+  foundationJob   FoundationJob     @relation(fields: [foundationJobId], references: [id], onDelete: Restrict)
+  requestedById   String
+  requestedBy     User              @relation("ReviewRetryRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  idempotencyKey  String            @unique
+  status          ReviewRetryStatus @default(REQUESTED)
+  errorCode       String?
+  requestedAt     DateTime          @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([foundationJobId, status])
 }

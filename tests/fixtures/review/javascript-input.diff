@@ -1,0 +1,9 @@
+diff --git a/src/review.js b/src/review.js
+index 1111111..2222222 100644
+--- a/src/review.js
++++ b/src/review.js
+@@ -1,2 +1,4 @@
+ export function handle(input) {
++  eval(input);
++  return sanitize(input);
+ }

@@ -29,8 +29,8 @@ available for every pull request. Static analyzers are fast but can be noisy,
 while manual review is slower and often compressed by deadlines.
 
 SentiRev is designed to sit between those extremes: deterministic checks for
-known patterns, reasoning about the changed code, and a concise explanation a
-developer can verify for themselves.
+known patterns, one explainable reasoning pass over the changed code, and a
+concise explanation a developer can verify for themselves.
 
 It focuses on issues such as:
 
@@ -53,10 +53,7 @@ Fetch PR diff ──► changed hunks with bounded context
         │
         ├────────► Semgrep static analysis
         │
-        └────────► Laguna S 2.1
-                         │ provider failure
-                         ▼
-                   Nemotron 3 Ultra
+        └────────► OpenRouter — Cohere North Mini Code Free
         │
         ▼
 Validate, score, merge, and deduplicate findings
@@ -79,8 +76,9 @@ For the finished v1, the expected flow is:
    severity-scored, merged, and deduplicated.
 6. Findings appear as cited inline comments and in the repository dashboard.
    A clean review still produces an explicit “no findings” result.
-7. If AI providers are unavailable, static findings still complete and the
-   review reports a visible delay instead of failing silently.
+7. If the AI request is unavailable or the free quota is exhausted, static
+   findings still complete and the review reports a visible delay instead of
+   failing silently. There is no same-run model substitution.
 
 ## Built around evidence, not alarm
 
@@ -127,7 +125,7 @@ experience are complete; the analysis pipeline is the next major milestone.
 | Signed, idempotent webhook ingestion | Complete |
 | PostgreSQL persistence and Redis-backed queued jobs | Complete |
 | Public landing proof and pending evaluations page | Complete |
-| Semgrep and Laguna/Nemotron review engine | Planned next |
+| Semgrep and OpenRouter Cohere North Mini Code Free review engine | In progress |
 | Inline PR findings and full operational dashboard | Planned |
 | Reproducible provider precision/recall publication | Planned |
 | Production hardening and deployment | Planned |
@@ -144,7 +142,7 @@ engine.
 - **Jobs:** Redis and BullMQ
 - **GitHub boundary:** GitHub App, OAuth, REST API, signed webhooks
 - **Analysis target:** JavaScript/TypeScript first, Python second
-- **Planned engines:** Semgrep, Laguna S 2.1, Nemotron 3 Ultra fallback
+- **Review engines:** Semgrep and OpenRouter Cohere North Mini Code Free (single fixed AI model)
 - **Testing:** Vitest and Playwright
 - **Interface:** the custom Annotated Gutter design system with self-hosted
   Space Grotesk and IBM Plex fonts

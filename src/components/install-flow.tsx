@@ -129,9 +129,9 @@ export function InstallFlow({
               <span className="consent-option-copy">
                 <span className="consent-option-title">Semgrep plus AI review</span>
                 <span className="supporting-copy">
-                  When enabled, later review diffs may be sent to Laguna S 2.1,
-                  with Nemotron 3 Ultra as the named fallback. No provider key
-                  is entered here.
+                  When enabled, later review diffs may be sent to OpenRouter's
+                  Cohere North Mini Code Free model. No provider key is entered here; the app
+                  owner manages it.
                 </span>
               </span>
             </label>
@@ -442,8 +442,7 @@ export function ConnectFlow({
                 <span className="consent-option-copy">
                   <span className="consent-option-title">Semgrep plus AI review</span>
                   <span className="supporting-copy">
-                    Later diffs may be sent to Laguna S 2.1, with Nemotron 3 Ultra
-                    as its named fallback.
+                    Later diffs may be sent to OpenRouter's Cohere North Mini Code Free model.
                   </span>
                 </span>
               </label>

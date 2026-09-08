@@ -1,0 +1,9 @@
+diff --git a/src/review.ts b/src/review.ts
+index 3333333..4444444 100644
+--- a/src/review.ts
++++ b/src/review.ts
+@@ -1,2 +1,4 @@
+ export function run(command: string) {
++  exec(command);
++  return command;
+ }

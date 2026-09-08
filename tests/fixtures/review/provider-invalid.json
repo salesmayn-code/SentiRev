@@ -1,0 +1,9 @@
+{
+  "choices": [
+    {
+      "message": {
+        "content": "{\"findings\":[{\"filePath\":\"../secret.ts\",\"startLine\":7,\"endLine\":7,\"severity\":\"High\",\"category\":\"authorization-bypass\",\"summary\":\"This finding cites an unsafe path.\",\"reasoning\":\"The provider must not cite paths outside the repository.\",\"snippet\":\"if (!user.isAdmin) throw new Error(\\\"forbidden\\\");\"}]}"
+      }
+    }
+  ]
+}

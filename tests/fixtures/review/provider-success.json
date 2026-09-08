@@ -1,0 +1,9 @@
+{
+  "choices": [
+    {
+      "message": {
+        "content": "{\"findings\":[{\"chunkId\":\"chunk-1\",\"severity\":\"High\",\"category\":\"authorization-bypass\",\"summary\":\"The handler authenticates the user but does not enforce the admin role.\",\"cited_lines\":[7],\"reasoning\":\"Any authenticated repository user can reach this path because the authorization check does not verify the required admin role before building the report.\",\"snippet\":\"if (!user.isAdmin) throw new Error(\\\"forbidden\\\");\"}]}"
+      }
+    }
+  ]
+}

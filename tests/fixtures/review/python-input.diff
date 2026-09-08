@@ -1,0 +1,8 @@
+diff --git a/src/review.py b/src/review.py
+index 5555555..6666666 100644
+--- a/src/review.py
++++ b/src/review.py
+@@ -1 +1,3 @@
+ def load(payload):
++    value = pickle.loads(payload)
++    return value
