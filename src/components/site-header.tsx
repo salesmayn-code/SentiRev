@@ -65,6 +65,9 @@ export function SiteHeader({
             <Link className="nav-link" href="/evals">
               Evals
             </Link>
+            <Link className="nav-link" href="/dashboard#repository-settings">
+              Repository settings
+            </Link>
             <Link className="nav-link" href="/api/auth/logout">
               Log out
             </Link>

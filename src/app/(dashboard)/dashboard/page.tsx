@@ -1,16 +1,15 @@
 import { AnnotatedGutter } from "@/components/annotated-gutter";
 import {
   DashboardShell,
-  type RepositorySummary,
   type DashboardState,
 } from "@/components/dashboard-shell";
 import { SiteHeader } from "@/components/site-header";
 import {
-  RepositoryAuthorizationError,
-  requireRepositoryAdmin,
-} from "@/lib/auth/authorization";
+  DashboardAccessError,
+  getDashboardData,
+  getDashboardRepositories,
+} from "@/lib/dashboard/data";
 import { getSession } from "@/lib/auth/session";
-import { prisma } from "@/lib/db/client";
 
 type SearchParams = Promise<{
   error?: string;
@@ -27,61 +26,50 @@ export default async function DashboardPage({
   const params = searchParams ? await searchParams : {};
   const session = await getSession();
   let state: DashboardState = session ? "empty" : "unauthorized";
-  let repositories: RepositorySummary[] = [];
+  let repositories: Awaited<ReturnType<typeof getDashboardRepositories>> = [];
+  let initialData: Awaited<ReturnType<typeof getDashboardData>> | undefined;
   let error: string | undefined = params.error;
 
   if (session) {
     try {
-      const storedRepositories = await prisma.repository.findMany({
-        where: { installation: { ownerUserId: session.userId } },
-        orderBy: { fullName: "asc" },
-        select: {
-          id: true,
-          fullName: true,
-          connectionStatus: true,
-          _count: { select: { pullRequests: true } },
-        },
-      });
-
-      const authorizedRepositories: RepositorySummary[] = [];
-      let deniedRepositoryCount = 0;
-      for (const repository of storedRepositories) {
-        try {
-          await requireRepositoryAdmin(session, repository.fullName);
-          authorizedRepositories.push({
-            id: repository.id,
-            fullName: repository.fullName,
-            connectionStatus: repository.connectionStatus,
-            reviewedPullRequests: repository._count.pullRequests,
-          });
-        } catch (authorizationError) {
-          if (!(authorizationError instanceof RepositoryAuthorizationError)) {
-            throw authorizationError;
-          }
-          deniedRepositoryCount += 1;
-          // Repository access is rechecked on every dashboard load. Rows that
-          // GitHub no longer confirms as admin-visible are not disclosed.
-        }
+      repositories = await getDashboardRepositories(session);
+      state = repositories.length > 0 ? "success" : "empty";
+    } catch (caughtError) {
+      if (caughtError instanceof DashboardAccessError) {
+        state = caughtError.code === "authentication_required"
+          ? "unauthorized"
+          : "error";
+        error = caughtError.code === "repository_access_denied"
+          ? "GitHub did not confirm administrator access for the connected repositories."
+          : "The repository list could not be loaded. No connection status was changed.";
+      } else {
+        state = "error";
+        error = "The repository list could not be loaded. No connection status was changed.";
       }
-
-      repositories = authorizedRepositories;
-      state =
-        repositories.length > 0
-          ? "success"
-          : deniedRepositoryCount > 0
-            ? "unauthorized"
-            : "empty";
-    } catch {
-      state = "error";
-      error = "The repository list could not be loaded. No connection status was changed.";
     }
   }
 
-  const currentRepository = repositories.some(
+  let currentRepository = repositories.some(
     (repository) => repository.id === params.repository,
   )
     ? params.repository
     : repositories[0]?.id;
+
+  if (session && currentRepository && state !== "error" && state !== "unauthorized") {
+    try {
+      initialData = await getDashboardData(session, currentRepository);
+    } catch (caughtError) {
+      state = "error";
+      // An authorization or data-read failure must not leave a previously
+      // fetched repository directory available to the rendered shell.
+      repositories = [];
+      initialData = undefined;
+      currentRepository = undefined;
+      error = caughtError instanceof DashboardAccessError
+        ? "This repository is no longer available to the authenticated GitHub administrator."
+        : "The repository review data could not be loaded. No repository state was changed.";
+    }
+  }
 
   return (
     <>
@@ -95,7 +83,8 @@ export default async function DashboardPage({
           <AnnotatedGutter index="02" label="Repository dashboard rail" />
           <div className="dashboard-content">
             <DashboardShell
-              repositories={repositories}
+              repositories={state === "error" ? [] : repositories}
+              initialData={initialData}
               initialState={state}
               initialError={error}
               currentRepository={currentRepository}

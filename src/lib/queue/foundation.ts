@@ -28,3 +28,19 @@ export async function closeFoundationQueue(): Promise<void> {
   await queue.close();
   queue = undefined;
 }
+
+/**
+ * Queue one administrator-requested retry using a delivery-specific queue ID.
+ * The durable FoundationJob remains the review identity; a retry must not
+ * create a second webhook delivery or duplicate review record.
+ */
+export async function publishFoundationJobRetry(
+  foundationJobId: string,
+  retryRequestId: string,
+): Promise<void> {
+  await getFoundationQueue().add(
+    "retry-foundation-review",
+    { foundationJobId },
+    { jobId: `retry:${retryRequestId}` },
+  );
+}
